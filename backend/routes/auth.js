@@ -4,36 +4,45 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const nodemailer = require('nodemailer');
 
-const sendFast2SmsOtp = async (mobile, otp) => {
-  if (!process.env.FAST2SMS_API_KEY || process.env.FAST2SMS_API_KEY === 'YOUR_API_KEY') {
+const sendEmailOtp = async (mobileOrEmail, otp) => {
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mobileOrEmail);
+  
+  if (!isEmail) {
     console.log(`\n=================================================`);
-    console.log(`[SIMULATED SMS] 🔑 OTP for ${mobile}: ${otp}`);
+    console.log(`[SIMULATED SMS] 🔑 OTP for ${mobileOrEmail}: ${otp}`);
     console.log(`=================================================\n`);
     return;
   }
-  
-  const url = 'https://www.fast2sms.com/dev/bulkV2';
-  const options = {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      authorization: process.env.FAST2SMS_API_KEY,
-      'content-type': 'application/json'
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.EMAIL_USER === 'your_email@gmail.com') {
+    console.log(`\n=================================================`);
+    console.log(`[SIMULATED EMAIL] 🔑 OTP for ${mobileOrEmail}: ${otp}`);
+    console.log(`=================================================\n`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
-    body: JSON.stringify({
-      route: 'otp',
-      variables_values: otp.toString(),
-      numbers: mobile.toString()
-    })
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: mobileOrEmail,
+    subject: 'Your Kishan Kata OTP Verification',
+    text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
   };
 
   try {
-    const res = await fetch(url, options);
-    const json = await res.json();
-    console.log('Fast2SMS Response:', json);
+    await transporter.sendMail(mailOptions);
+    console.log(`Email OTP sent successfully to ${mobileOrEmail}`);
   } catch (err) {
-    console.error('Fast2SMS Error:', err);
+    console.error('Nodemailer Error:', err);
   }
 };
 
@@ -61,7 +70,7 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    await sendFast2SmsOtp(mobileOrEmail, otp);
+    await sendEmailOtp(mobileOrEmail, otp);
 
     res.json({ message: 'OTP sent successfully. Please verify to continue.' });
   } catch (err) {
@@ -157,7 +166,7 @@ router.post('/forgot-password', async (req, res) => {
     user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    await sendFast2SmsOtp(mobileOrEmail, otp);
+    await sendEmailOtp(mobileOrEmail, otp);
 
     res.json({ message: 'OTP sent successfully for password reset.' });
   } catch (err) {
