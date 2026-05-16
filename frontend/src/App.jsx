@@ -12,6 +12,7 @@ import LaborerDetail from './pages/LaborerDetail';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
@@ -26,6 +27,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login setAuth={setIsAuthenticated} />} />
         <Route path="/register" element={<Register setAuth={setIsAuthenticated} />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route path="/" element={<ProtectedRoute><DiaryLayout setAuth={setIsAuthenticated} /></ProtectedRoute>}>
           <Route index element={<Home />} />

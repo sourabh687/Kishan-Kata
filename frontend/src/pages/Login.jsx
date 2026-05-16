@@ -56,6 +56,9 @@ const Login = ({ setAuth }) => {
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
             Login
           </button>
+          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <Link to="/forgot-password" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Forgot Password?</Link>
+          </div>
         </form>
         <p className="text-secondary text-sm" style={{ textAlign: 'center', marginTop: '1.5rem' }}>
           Don't have an account? <Link to="/register" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>Register</Link>
