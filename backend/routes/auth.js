@@ -13,14 +13,14 @@ const sendEmailOtp = async (mobileOrEmail, otp) => {
     console.log(`\n=================================================`);
     console.log(`[SIMULATED SMS] 🔑 OTP for ${mobileOrEmail}: ${otp}`);
     console.log(`=================================================\n`);
-    return;
+    return true;
   }
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.EMAIL_USER === 'your_email@gmail.com') {
     console.log(`\n=================================================`);
     console.log(`[SIMULATED EMAIL] 🔑 OTP for ${mobileOrEmail}: ${otp}`);
     console.log(`=================================================\n`);
-    return;
+    throw new Error('Email credentials are not configured on the server production environment.');
   }
 
   const transporter = nodemailer.createTransport({
@@ -38,12 +38,8 @@ const sendEmailOtp = async (mobileOrEmail, otp) => {
     text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email OTP sent successfully to ${mobileOrEmail}`);
-  } catch (err) {
-    console.error('Nodemailer Error:', err);
-  }
+  await transporter.sendMail(mailOptions);
+  console.log(`Email OTP sent successfully to ${mobileOrEmail}`);
 };
 
 // Register User
@@ -65,8 +61,6 @@ router.post('/register', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
     user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    await user.save();
 
     await user.save();
 
