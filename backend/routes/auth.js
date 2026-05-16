@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Otp = require('../models/Otp');
 const auth = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 
@@ -44,27 +45,29 @@ const sendEmailOtp = async (mobileOrEmail, otp) => {
 
 // Register User
 router.post('/register', async (req, res) => {
-  const { name, mobileOrEmail, password } = req.body;
+  const { name, username, email, mobile, password } = req.body;
 
   try {
-    let user = await User.findOne({ mobileOrEmail });
+    let user = await User.findOne({ $or: [{ email }, { username }] });
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'User with this email or username already exists' });
+      } else {
+        // Delete unverified legacy users so they can re-register
+        await User.deleteMany({ $or: [{ email }, { username }] });
+      }
     }
-
-    user = new User({ name, mobileOrEmail, password, isVerified: false });
-
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+    // Clear any previous pending OTPs for this email
+    await Otp.deleteMany({ email });
 
-    await user.save();
+    const newOtp = new Otp({ email, otp });
+    await newOtp.save();
 
-    await sendEmailOtp(mobileOrEmail, otp);
+    await sendEmailOtp(email, otp);
 
     res.json({ message: 'OTP sent successfully. Please verify to continue.' });
   } catch (err) {
@@ -74,32 +77,48 @@ router.post('/register', async (req, res) => {
 
 // Verify OTP
 router.post('/verify-otp', async (req, res) => {
-  const { mobileOrEmail, otp } = req.body;
+  const { name, username, email, mobile, password, otp } = req.body;
 
   try {
-    let user = await User.findOne({ mobileOrEmail });
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
+    let user = await User.findOne({ $or: [{ email }, { username }] });
+    if (user) {
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'User already exists and is verified' });
+      }
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'User already verified' });
-    }
-
-    if (String(user.otp).trim() !== String(otp).trim() || user.otpExpires < Date.now()) {
+    const otpRecord = await Otp.findOne({ email }).sort({ createdAt: -1 });
+    
+    if (!otpRecord) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
+    if (String(otpRecord.otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
     // Mark as verified and clear OTP
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
+    if (!user) {
+      user = new User({ name, username, email, mobile, password, isVerified: true });
+    } else {
+      user.name = name;
+      user.username = username;
+      user.email = email;
+      user.mobile = mobile;
+      user.password = password;
+      user.isVerified = true;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
     await user.save();
+
+    await Otp.deleteMany({ email });
 
     const payload = { user: { id: user.id } };
     jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '30d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, mobileOrEmail: user.mobileOrEmail } });
+      res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email } });
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -108,17 +127,24 @@ router.post('/verify-otp', async (req, res) => {
 
 // Login User
 router.post('/login', async (req, res) => {
-  const { mobileOrEmail, password } = req.body;
+  const { loginIdentifier, password } = req.body;
 
   try {
-    let user = await User.findOne({ mobileOrEmail });
+    let user = await User.findOne({ 
+      $or: [
+        { username: loginIdentifier },
+        { email: loginIdentifier },
+        { mobile: loginIdentifier },
+        { mobileOrEmail: loginIdentifier } // For backward compatibility with older unmigrated data
+      ]
+    });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
+      return res.status(400).json({ message: 'User not found' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
+      return res.status(400).json({ message: 'Incorrect password' });
     }
 
     if (!user.isVerified) {
@@ -128,7 +154,7 @@ router.post('/login', async (req, res) => {
     const payload = { user: { id: user.id } };
     jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '30d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, mobileOrEmail: user.mobileOrEmail } });
+      res.json({ token, user: { id: user.id, name: user.name, username: user.username, email: user.email } });
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
