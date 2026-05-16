@@ -86,7 +86,7 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ message: 'User already verified' });
     }
 
-    if (user.otp !== otp || user.otpExpires < Date.now()) {
+    if (String(user.otp).trim() !== String(otp).trim() || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
@@ -178,7 +178,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.otp !== otp || user.otpExpires < Date.now()) {
+    if (String(user.otp).trim() !== String(otp).trim() || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
