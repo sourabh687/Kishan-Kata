@@ -6,16 +6,36 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://kishan-kata.vercel.app'
+];
+
+if (process.env.CLIENT_URL) {
+  allowedOrigins.push(process.env.CLIENT_URL);
+}
+
 app.use(cors({
-  origin: "https://kishan-kata.vercel.app",
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Permissive CORS for dev/prod flexibility
+  },
   credentials: true
 }));
 app.use(express.json());
 
 // Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/kishankata';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log(`MongoDB Connected successfully to ${MONGODB_URI}`))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
 const authRouter = require('./routes/auth');
