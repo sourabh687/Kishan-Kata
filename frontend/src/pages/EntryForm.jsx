@@ -14,6 +14,9 @@ const EntryForm = () => {
     details: ''
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
   const kharchaCategories = ['Fertilizer', 'Seeds', 'Labor', 'Pesticide', 'Fuel/Machinery', 'Other'];
   const kamaiCategories = ['Crop Sale', 'Advance Payment', 'Subsidy', 'Other Income'];
 
@@ -43,6 +46,12 @@ const EntryForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.cropId) {
+      setError('Please select or add a crop first.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       await api.post('/transactions', {
         ...formData,
@@ -52,7 +61,10 @@ const EntryForm = () => {
       navigate('/');
     } catch (err) {
       console.error("Error saving transaction", err);
-      alert("Failed to save transaction");
+      const msg = err.response?.data?.message || err.message || 'Failed to save transaction';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,6 +104,20 @@ const EntryForm = () => {
           Kamai (+)
         </button>
       </div>
+
+      {error && (
+        <div style={{ 
+          backgroundColor: '#fee2e2', 
+          border: '1px solid #ef4444', 
+          color: '#b91c1c', 
+          padding: '0.75rem 1rem', 
+          borderRadius: 'var(--radius-md)', 
+          marginBottom: '1.5rem', 
+          fontSize: '0.875rem' 
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="card">
@@ -148,8 +174,13 @@ const EntryForm = () => {
           ></textarea>
         </div>
 
-        <button type="submit" className={`btn w-100 ${type === 'Kharcha' ? 'btn-kharcha' : 'btn-kamai'}`} style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
-          Save {type}
+        <button 
+          type="submit" 
+          disabled={loading || crops.length === 0}
+          className={`btn w-100 ${type === 'Kharcha' ? 'btn-kharcha' : 'btn-kamai'}`} 
+          style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+        >
+          {loading ? 'Saving...' : `Save ${type}`}
         </button>
       </form>
     </div>

@@ -14,6 +14,9 @@ const AddLaborer = () => {
     assignedCrops: []
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
   useEffect(() => {
     const fetchCrops = async () => {
       try {
@@ -39,9 +42,16 @@ const AddLaborer = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      setError('Please enter laborer name.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       const payload = {
         ...formData,
+        name: formData.name.trim(),
         baseRate: Number(formData.baseRate) || 0,
         advanceBalance: Number(formData.advanceBalance) || 0
       };
@@ -49,7 +59,10 @@ const AddLaborer = () => {
       navigate('/labor');
     } catch (err) {
       console.error('Error adding laborer:', err);
-      alert('Failed to add laborer');
+      const msg = err.response?.data?.message || err.message || 'Failed to add laborer';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,6 +74,20 @@ const AddLaborer = () => {
         </button>
         <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Add New Laborer</h2>
       </div>
+
+      {error && (
+        <div style={{ 
+          backgroundColor: '#fee2e2', 
+          border: '1px solid #ef4444', 
+          color: '#b91c1c', 
+          padding: '0.75rem 1rem', 
+          borderRadius: 'var(--radius-md)', 
+          marginBottom: '1.5rem', 
+          fontSize: '0.875rem' 
+        }}>
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="card">
         <div style={{ marginBottom: '1rem' }}>
@@ -127,8 +154,13 @@ const AddLaborer = () => {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
-          Save Laborer
+        <button 
+          type="submit" 
+          disabled={loading}
+          className="btn btn-primary" 
+          style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+        >
+          {loading ? 'Saving Laborer...' : 'Save Laborer'}
         </button>
       </form>
     </div>

@@ -11,12 +11,22 @@ const AddCrop = () => {
     areaValue: '',
     areaUnit: 'Acres'
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      setError('Please enter a crop name.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
       const payload = {
-        name: formData.name,
+        name: formData.name.trim(),
         season: formData.season,
         area: formData.areaValue ? `${formData.areaValue} ${formData.areaUnit}` : ''
       };
@@ -24,7 +34,10 @@ const AddCrop = () => {
       navigate('/');
     } catch (err) {
       console.error('Error adding crop:', err);
-      alert('Failed to add crop');
+      const msg = err.response?.data?.message || err.message || 'Failed to add crop. Please check your connection.';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,6 +49,20 @@ const AddCrop = () => {
         </button>
         <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Add New Crop</h2>
       </div>
+
+      {error && (
+        <div style={{ 
+          backgroundColor: '#fee2e2', 
+          border: '1px solid #ef4444', 
+          color: '#b91c1c', 
+          padding: '0.75rem 1rem', 
+          borderRadius: 'var(--radius-md)', 
+          marginBottom: '1rem', 
+          fontSize: '0.875rem' 
+        }}>
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="card">
         <div style={{ marginBottom: '1rem' }}>
@@ -90,8 +117,13 @@ const AddCrop = () => {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
-          Save Crop
+        <button 
+          type="submit" 
+          disabled={loading}
+          className="btn btn-primary" 
+          style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+        >
+          {loading ? 'Saving Crop...' : 'Save Crop'}
         </button>
       </form>
     </div>

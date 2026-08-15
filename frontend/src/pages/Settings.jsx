@@ -26,7 +26,8 @@ const Settings = ({ setAuth }) => {
           </div>
           <div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{user?.name || 'Farmer'}</h3>
-            <p className="text-secondary text-sm">Contact: {user?.mobileOrEmail}</p>
+            <p className="text-secondary text-sm">@{user?.username || 'user'}</p>
+            {user?.mobile && <p className="text-secondary text-xs">Mobile: {user.mobile}</p>}
           </div>
         </div>
       </div>
