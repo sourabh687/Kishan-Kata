@@ -5,7 +5,7 @@ const transactionSchema = new mongoose.Schema({
   type: { type: String, enum: ['Kharcha', 'Kamai'], required: true },
   category: { type: String, required: true }, // e.g., 'Fertilizer', 'Labor', 'Sale'
   amount: { type: Number, required: true },
-  mode: { type: String, enum: ['Cash', 'Bank', 'Credit'], default: 'Cash' },
+  mode: { type: String, enum: ['Cash', 'Bank', 'UPI', 'Credit'], default: 'Cash' },
   date: { type: Date, default: Date.now },
   details: { type: String },
   laborerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Laborer' }, // If it's a labor transaction

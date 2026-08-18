@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Digital Farmer Ledger - Kishan Kata",
   "scripts": {
-    "dev:backend": "npm --prefix backend start",
+    "start": "npm --prefix backend start",
+    "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "install:backend": "npm --prefix backend install",
     "install:frontend": "npm --prefix frontend install",

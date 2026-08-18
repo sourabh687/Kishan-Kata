@@ -42,11 +42,15 @@ const authRouter = require('./routes/auth');
 const cropsRouter = require('./routes/crops');
 const transactionsRouter = require('./routes/transactions');
 const laborersRouter = require('./routes/laborers');
+const attendancesRouter = require('./routes/attendances');
+const settlementsRouter = require('./routes/settlements');
 
 app.use('/api/auth', authRouter);
 app.use('/api/crops', cropsRouter);
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/laborers', laborersRouter);
+app.use('/api/attendances', attendancesRouter);
+app.use('/api/settlements', settlementsRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Kishan Kata backend is running.' });
