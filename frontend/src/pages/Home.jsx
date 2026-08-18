@@ -30,7 +30,7 @@ const Home = () => {
   }, []);
 
   const getCropTotals = (cropId) => {
-    const cropTx = transactions.filter(t => t.cropId && t.cropId._id === cropId);
+    const cropTx = transactions.filter(t => t.cropId && (t.cropId._id === cropId || t.cropId === cropId));
     const investment = cropTx.filter(t => t.type === 'Kharcha').reduce((sum, t) => sum + t.amount, 0);
     const returnAmt = cropTx.filter(t => t.type === 'Kamai').reduce((sum, t) => sum + t.amount, 0);
     return { investment, returnAmt };

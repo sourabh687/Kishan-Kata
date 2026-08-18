@@ -9,6 +9,7 @@ const transactionSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   details: { type: String },
   laborerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Laborer' }, // If it's a labor transaction
+  attendanceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Attendance' }, // Linked attendance record
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

@@ -132,24 +132,24 @@ router.post('/', auth, async (req, res) => {
     laborer.advanceBalance = Math.max(0, laborer.advanceBalance - numAdvanceDeducted);
     await laborer.save();
 
-    // Record Kharcha Transactions for accurate farm accounting
-    // Create transaction entries according to crop breakdown
-    for (const cropItem of cropBreakdown) {
-      // Proportionate net payout for this crop
-      const cropShareRatio = grossWage > 0 ? (cropItem.amount / grossWage) : 0;
-      const cropNetPaid = Math.round(netPaid * cropShareRatio);
-
-      await Transaction.create({
-        cropId: cropItem.cropId,
-        type: 'Kharcha',
-        category: 'Labor',
-        amount: cropItem.amount, // Record full wage expense for the crop
-        mode: paymentMode,
-        date: new Date(),
-        details: `Settlement for ${laborer.name}: ${cropItem.days} days work (${cropItem.cropName}). ${numAdvanceDeducted > 0 ? `(Advance deducted: ₹${Math.round(numAdvanceDeducted * cropShareRatio)})` : ''}`,
-        laborerId: laborer._id,
-        userId: req.user.id
-      });
+    // Ensure any legacy attendance without a transaction is backed by a transaction
+    for (const att of attendances) {
+      if (!att.transactionId) {
+        const cropNameText = att.cropId ? ` (${att.cropId.name})` : '';
+        const tx = await Transaction.create({
+          cropId: att.cropId ? att.cropId._id : null,
+          type: 'Kharcha',
+          category: 'Labor',
+          amount: att.totalWage,
+          mode: paymentMode,
+          date: att.date || new Date(),
+          details: `Labor Expense: ${laborer.name}${cropNameText} - ${att.units}d (${att.status})`,
+          laborerId: laborer._id,
+          attendanceId: att._id,
+          userId: req.user.id
+        });
+        await Attendance.updateOne({ _id: att._id }, { transactionId: tx._id });
+      }
     }
 
     res.status(201).json(savedSettlement);

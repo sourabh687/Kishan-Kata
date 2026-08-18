@@ -210,7 +210,13 @@ router.delete('/:id', auth, async (req, res) => {
     if (!laborer) return res.status(404).json({ message: 'Laborer not found' });
 
     await Laborer.deleteOne({ _id: req.params.id });
-    // Also clean up attendances
+    // Also clean up attendances and their linked transactions
+    const attendances = await Attendance.find({ laborerId: req.params.id, userId: req.user.id });
+    const txIds = attendances.map(a => a.transactionId).filter(Boolean);
+    if (txIds.length > 0) {
+      await Transaction.deleteMany({ _id: { $in: txIds } });
+    }
+    await Transaction.deleteMany({ laborerId: req.params.id, userId: req.user.id });
     await Attendance.deleteMany({ laborerId: req.params.id, userId: req.user.id });
 
     res.json({ message: 'Laborer and associated records deleted' });

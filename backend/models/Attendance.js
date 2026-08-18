@@ -15,6 +15,7 @@ const attendanceSchema = new mongoose.Schema({
   activity: { type: String, default: '' }, // e.g., 'Weeding', 'Harvesting', 'Spraying'
   isSettled: { type: Boolean, default: false },
   settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement', default: null },
+  transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction', default: null },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

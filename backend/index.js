@@ -34,7 +34,40 @@ app.use(express.json());
 // Database Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/kishankata';
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log(`MongoDB Connected successfully to ${MONGODB_URI}`))
+  .then(async () => {
+    console.log(`MongoDB Connected successfully to ${MONGODB_URI}`);
+    // Sync any existing attendance records that don't have crop labor expense transactions yet
+    try {
+      const Attendance = require('./models/Attendance');
+      const Transaction = require('./models/Transaction');
+      const unsynced = await Attendance.find({ transactionId: null, totalWage: { $gt: 0 } })
+        .populate('laborerId')
+        .populate('cropId');
+
+      for (const att of unsynced) {
+        const workerName = att.laborerId ? att.laborerId.name : 'Worker';
+        const cropName = att.cropId ? ` (${att.cropId.name})` : '';
+        const tx = await Transaction.create({
+          cropId: att.cropId ? att.cropId._id : null,
+          type: 'Kharcha',
+          category: 'Labor',
+          amount: att.totalWage,
+          mode: 'Credit',
+          date: att.date || new Date(),
+          details: `Labor Expense: ${workerName}${cropName} - ${att.units}d (${att.status || 'Full Day'})${att.activity ? ` [${att.activity}]` : ''}`,
+          laborerId: att.laborerId ? att.laborerId._id : null,
+          attendanceId: att._id,
+          userId: att.userId
+        });
+        await Attendance.updateOne({ _id: att._id }, { transactionId: tx._id });
+      }
+      if (unsynced.length > 0) {
+        console.log(`Synced ${unsynced.length} existing attendance labor expenses into crop transactions.`);
+      }
+    } catch (syncErr) {
+      console.error('Error syncing legacy attendance transactions:', syncErr);
+    }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes

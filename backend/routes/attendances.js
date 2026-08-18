@@ -3,6 +3,8 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const Laborer = require('../models/Laborer');
+const Crop = require('../models/Crop');
+const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 
 // GET /api/attendances - query attendances with filters
@@ -100,38 +102,69 @@ router.post('/', auth, async (req, res) => {
         return res.status(400).json({ message: 'Laborer ID is required' });
       }
 
-      // If wageRate is not provided, fetch default from Laborer
+      // Fetch laborer details
+      const laborer = await Laborer.findOne({ _id: laborerId, userId: req.user.id });
       let rate = wageRate;
       if (rate === undefined || rate === null || rate === '') {
-        const lab = await Laborer.findOne({ _id: laborerId, userId: req.user.id });
-        rate = lab ? lab.baseRate : 0;
+        rate = laborer ? laborer.baseRate : 0;
       }
       rate = Number(rate) || 0;
 
       let effectiveUnits = units;
       if (effectiveUnits === undefined || effectiveUnits === null) {
         if (status === 'Half Day') effectiveUnits = 0.5;
+        else if (status === 'Overtime') effectiveUnits = 1.5;
         else if (status === 'Absent') effectiveUnits = 0;
         else effectiveUnits = 1;
       }
       effectiveUnits = Number(effectiveUnits);
 
       const totalWage = effectiveUnits * rate;
+      const attDate = date ? new Date(date) : new Date();
+
+      // Automatically create a Labor Kharcha transaction assigned to the crop
+      let transactionId = null;
+      if (totalWage > 0) {
+        let cropNameText = '';
+        if (cropId) {
+          const cropDoc = await Crop.findOne({ _id: cropId, userId: req.user.id });
+          if (cropDoc) cropNameText = ` (${cropDoc.name})`;
+        }
+
+        const laborTx = new Transaction({
+          cropId: cropId || null,
+          type: 'Kharcha',
+          category: 'Labor',
+          amount: totalWage,
+          mode: 'Credit',
+          date: attDate,
+          details: `Labor Expense: ${laborer ? laborer.name : 'Worker'}${cropNameText} - ${effectiveUnits}d (${status || 'Full Day'})${activity ? ` [${activity}]` : ''}`,
+          laborerId: laborerId,
+          userId: req.user.id
+        });
+        const savedTx = await laborTx.save();
+        transactionId = savedTx._id;
+      }
 
       const att = new Attendance({
         laborerId,
         cropId: cropId || null,
-        date: date ? new Date(date) : new Date(),
+        date: attDate,
         status: status || 'Full Day',
         units: effectiveUnits,
         wageRate: rate,
         totalWage: totalWage,
         activity: activity || '',
         isSettled: false,
+        transactionId: transactionId,
         userId: req.user.id
       });
 
       const saved = await att.save();
+      if (transactionId) {
+        await Transaction.updateOne({ _id: transactionId }, { attendanceId: saved._id });
+      }
+
       await saved.populate('laborerId', 'name baseRate');
       await saved.populate('cropId', 'name season');
       createdAttendances.push(saved);
@@ -155,8 +188,14 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete already settled attendance record' });
     }
 
+    // Delete linked crop labor transaction
+    if (attendance.transactionId) {
+      await Transaction.deleteOne({ _id: attendance.transactionId, userId: req.user.id });
+    }
+    await Transaction.deleteMany({ attendanceId: attendance._id, userId: req.user.id });
+
     await Attendance.deleteOne({ _id: req.params.id });
-    res.json({ message: 'Attendance record deleted successfully' });
+    res.json({ message: 'Attendance record and linked crop expense deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
